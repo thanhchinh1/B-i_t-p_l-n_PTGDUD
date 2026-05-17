@@ -6,9 +6,8 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Upload, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../lib/firebase';
-import { useCourseStore } from '../../store/useCourseStore';
+import { db } from '../../lib/firebase';
+import { useCourseStore, uploadToCloudinary } from '../../store/useCourseStore';
 
 const courseSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters"),
@@ -80,9 +79,7 @@ const CourseEditPage = () => {
       let thumbnailUrl = thumbnailPreview;
       
       if (thumbnailFile) {
-        const storageRef = ref(storage, `courses/${Date.now()}_${thumbnailFile.name}`);
-        const snapshot = await uploadBytes(storageRef, thumbnailFile);
-        thumbnailUrl = await getDownloadURL(snapshot.ref);
+        thumbnailUrl = await uploadToCloudinary(thumbnailFile);
       } else if (!thumbnailPreview && typeof thumbnailPreview !== 'string') {
         thumbnailUrl = null;
       }

@@ -1,15 +1,17 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Users, BookOpen, GraduationCap, TrendingUp } from 'lucide-react';
+import { Users, BookOpen, GraduationCap, TrendingUp, Loader2 } from 'lucide-react';
+import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 const data = [
-  { name: 'Jan', students: 400, courses: 24 },
-  { name: 'Feb', students: 300, courses: 13 },
-  { name: 'Mar', students: 200, courses: 98 },
-  { name: 'Apr', students: 278, courses: 39 },
-  { name: 'May', students: 189, courses: 48 },
-  { name: 'Jun', students: 239, courses: 38 },
-  { name: 'Jul', students: 349, courses: 43 },
+  { name: 'Jan', students: 10, courses: 2 },
+  { name: 'Feb', students: 15, courses: 3 },
+  { name: 'Mar', students: 20, courses: 4 },
+  { name: 'Apr', students: 25, courses: 5 },
+  { name: 'May', students: 30, courses: 8 },
+  { name: 'Jun', students: 45, courses: 10 },
+  { name: 'Jul', students: 50, courses: 12 },
 ];
 
 const StatCard = ({ title, value, icon: Icon, trend }) => (
@@ -31,9 +33,101 @@ const StatCard = ({ title, value, icon: Icon, trend }) => (
   </div>
 );
 
+const formatCurrency = (value) => {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+};
+
+const timeAgo = (date) => {
+  if (!date) return 'Just now';
+  const seconds = Math.floor((new Date() - date) / 1000);
+  let interval = Math.floor(seconds / 31536000);
+  if (interval >= 1) return interval + "y ago";
+  interval = Math.floor(seconds / 2592000);
+  if (interval >= 1) return interval + "mo ago";
+  interval = Math.floor(seconds / 86400);
+  if (interval >= 1) return interval + "d ago";
+  interval = Math.floor(seconds / 3600);
+  if (interval >= 1) return interval + "h ago";
+  interval = Math.floor(seconds / 60);
+  if (interval >= 1) return interval + "m ago";
+  return Math.floor(seconds) + "s ago";
+};
+
 const DashboardPage = () => {
+  const [stats, setStats] = useState({
+    totalStudents: 0,
+    activeCourses: 0,
+    totalEnrollments: 0,
+    revenue: 0,
+    recentActivity: []
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const usersSnap = await getDocs(collection(db, "users"));
+        const totalStudents = usersSnap.size;
+
+        const coursesSnap = await getDocs(collection(db, "courses"));
+        const activeCourses = coursesSnap.size;
+        const coursesMap = {};
+        coursesSnap.forEach(doc => {
+          coursesMap[doc.id] = doc.data();
+        });
+
+        const enrollmentsRef = collection(db, "enrollments");
+        const enrollmentsQuery = query(enrollmentsRef, orderBy("enrolledAt", "desc"));
+        const enrollmentsSnap = await getDocs(enrollmentsQuery);
+        const totalEnrollments = enrollmentsSnap.size;
+
+        let revenue = 0;
+        const recentActivity = [];
+
+        enrollmentsSnap.forEach(doc => {
+          const data = doc.data();
+          const course = coursesMap[data.courseId];
+          if (course) {
+            revenue += Number(course.price || 0);
+          }
+          
+          if (recentActivity.length < 5) {
+            recentActivity.push({
+              id: doc.id,
+              courseName: course?.title || 'Unknown Course',
+              enrolledAt: data.enrolledAt?.toDate() || new Date(),
+              userId: data.userId
+            });
+          }
+        });
+
+        setStats({
+          totalStudents,
+          activeCourses,
+          totalEnrollments,
+          revenue,
+          recentActivity
+        });
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6 fade-in h-full">
+    <div className="space-y-6 fade-in h-full pb-10">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard Overview</h1>
@@ -45,10 +139,10 @@ const DashboardPage = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total Students" value="12,345" icon={Users} trend="12.5" />
-        <StatCard title="Active Courses" value="84" icon={BookOpen} trend="5.2" />
-        <StatCard title="Total Enrollments" value="45,678" icon={GraduationCap} trend="14.8" />
-        <StatCard title="Revenue" value="$124,500" icon={TrendingUp} trend="8.4" />
+        <StatCard title="Total Students" value={stats.totalStudents} icon={Users} trend="12.5" />
+        <StatCard title="Active Courses" value={stats.activeCourses} icon={BookOpen} trend="5.2" />
+        <StatCard title="Total Enrollments" value={stats.totalEnrollments} icon={GraduationCap} trend="14.8" />
+        <StatCard title="Revenue" value={formatCurrency(stats.revenue)} icon={TrendingUp} trend="8.4" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -78,20 +172,22 @@ const DashboardPage = () => {
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/50 p-6">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Recent Activity</h2>
           <div className="space-y-6">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="flex items-start">
+            {stats.recentActivity.length > 0 ? stats.recentActivity.map((activity, i) => (
+              <div key={activity.id} className="flex items-start">
                 <div className="h-10 w-10 rounded-full bg-gray-100 dark:bg-gray-700 flex-shrink-0 flex items-center justify-center">
-                  <span className="text-sm font-medium text-gray-600 dark:text-gray-300">U{i}</span>
+                  <span className="text-sm font-medium text-gray-600 dark:text-gray-300">U{i+1}</span>
                 </div>
                 <div className="ml-4 flex-1">
                   <p className="text-sm font-medium text-gray-900 dark:text-white">New student enrolled</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">React for Beginners course</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{activity.courseName}</p>
                 </div>
                 <div className="text-xs text-gray-400">
-                  {i * 2}h ago
+                  {timeAgo(activity.enrolledAt)}
                 </div>
               </div>
-            ))}
+            )) : (
+              <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">No recent activity</p>
+            )}
           </div>
         </div>
       </div>
