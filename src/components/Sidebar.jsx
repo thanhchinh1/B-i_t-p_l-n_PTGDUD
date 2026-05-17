@@ -11,7 +11,6 @@ const navItems = [
 const adminItems = [
   { name: 'Dashboard', path: '/', icon: LayoutDashboard },
   { name: 'Users', path: '/users', icon: Users },
-  { name: 'Settings', path: '/settings', icon: Settings },
 ];
 
 const Sidebar = () => {
