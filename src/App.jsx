@@ -1,8 +1,21 @@
+import React, { useEffect } from 'react';
+import { RouterProvider } from 'react-router-dom';
+import { router } from './routes';
+import { useAuthStore } from './store/useAuthStore';
+import { Toaster } from 'sonner';
+
 function App() {
+  const { init } = useAuthStore();
+
+  useEffect(() => {
+    init();
+  }, [init]);
+
   return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center">
-      <h1 className="text-5xl font-bold text-blue-500">Online Course App</h1>
-    </div>
+    <>
+      <RouterProvider router={router} />
+      <Toaster position="top-right" richColors />
+    </>
   );
 }
 
