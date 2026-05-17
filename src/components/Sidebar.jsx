@@ -4,12 +4,12 @@ import { LayoutDashboard, BookOpen, Users, Settings, BookCopy } from 'lucide-rea
 import { useAuthStore } from '../store/useAuthStore';
 
 const navItems = [
-  { name: 'Dashboard', path: '/', icon: LayoutDashboard },
   { name: 'Courses', path: '/courses', icon: BookOpen },
   { name: 'My Learning', path: '/my-courses', icon: BookCopy },
 ];
 
 const adminItems = [
+  { name: 'Dashboard', path: '/', icon: LayoutDashboard },
   { name: 'Users', path: '/users', icon: Users },
   { name: 'Settings', path: '/settings', icon: Settings },
 ];

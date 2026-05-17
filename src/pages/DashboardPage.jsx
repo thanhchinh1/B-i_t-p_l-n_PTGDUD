@@ -3,7 +3,10 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Users, BookOpen, GraduationCap, TrendingUp, Loader2 } from 'lucide-react';
 import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../store/useAuthStore';
 
+// ... (keep data array and components) ...
 const data = [
   { name: 'Jan', students: 10, courses: 2 },
   { name: 'Feb', students: 15, courses: 3 },
@@ -54,6 +57,9 @@ const timeAgo = (date) => {
 };
 
 const DashboardPage = () => {
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
+  
   const [stats, setStats] = useState({
     totalStudents: 0,
     activeCourses: 0,
@@ -64,6 +70,11 @@ const DashboardPage = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (user && user.role !== 'admin') {
+      navigate('/courses');
+      return;
+    }
+
     const fetchDashboardData = async () => {
       try {
         const usersSnap = await getDocs(collection(db, "users"));
